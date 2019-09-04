@@ -7,8 +7,8 @@ import networkx as nx
 
 from CreateEdges import *
 
+
 edges = create_edges()
-num_nodes = len(edges)
 
 #create graph G
 G = nx.Graph()
@@ -110,10 +110,18 @@ fig = go.Figure(data=[edge_trace, node_trace],
 
 app.layout = html.Div([
                 html.Div(dcc.Graph(id='Graph',figure=fig)),
+                html.Div([
+                        dcc.Slider(
+                            id='my-slider',
+                            min=50, max=100, value=50,
+                            marks={'50': '50', '60': '60', '70': '70', '80': '80', '90': '90', '100': '100'}
+                        ),
+                        html.Div(id='slider-output-container')
+                    ], className='submit area'),
                 html.Div(className='row', children=[
                     html.Div([html.H2('Overall Data'),
-                              html.P('Num of nodes: ' + str(len(G.nodes))),
-                              html.P('Num of edges: ' + str(len(G.edges)))],
+                              html.P('Number of nodes: ' + str(len(G.nodes))),
+                              html.P('Number of edges: ' + str(len(G.edges)))],
                               className='three columns'),
                     html.Div([
                             html.H2('Selected Data'),
@@ -134,6 +142,13 @@ def display_selected_data(selectedData):
         material = x['text'].split(sep, 1)[0]
         text.append(html.P(str(material)))
     return text
+
+@app.callback(
+    dash.dependencies.Output('slider-output-container', 'children'),
+    [dash.dependencies.Input('my-slider', 'value')])
+def update_output(value):
+    # print(value)
+    return 'You have selected "{}"'.format(value)
 
 if __name__ == '__main__':
     app.run_server(debug=True)

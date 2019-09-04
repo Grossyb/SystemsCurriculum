@@ -1,5 +1,5 @@
-import json
 from difflib import SequenceMatcher
+from CanvasData import grab_canvas_data
 
 
 #data structure initialization
@@ -9,23 +9,20 @@ gradesList = []
 modulesList = []
 gradeScores = []
 edges = []
-similarEdges = []
-colorMap = []
-
-
-def similar(a, b):
-    return SequenceMatcher(None, a, b).ratio()
 
 
 def create_edges():
     #read in JSON file
-    with open('grades.json', 'r') as fp:
-        data = json.load(fp)
+    data, data2 = grab_canvas_data()
+    #print(data)
+    #print(data2)
 
     #parse data into formatted dictionary
     for d in data:
         grades[d['assignment']] = {}
-        score = float(d['score']) / float(d['total']) * 100
+        if d['score'] == None:
+            d['score'] = 0
+        score = 22
         grades[d['assignment']]['grade'] = score
         grades[d['assignment']]['module'] = d['module']
 
@@ -35,23 +32,22 @@ def create_edges():
         gradeScores.append(v['grade'])
         modulesList.append(v['module'])
 
-    #assign colors to each node
-    for g in gradeScores:
-        if g < 50.00:
-            colorMap.append('indianred')
-        elif g > 50.00 and g < 70.00:
-            colorMap.append('royalblue')
-        elif g > 80.00:
-            colorMap.append('seagreen')
 
-    #add edges
+    '''add edges
     for i in range(len(gradesList)):
         if i + 1 < len(gradesList):
             for j in range(i+1, len(gradesList)):
                 if modulesList[i] == modulesList[j]:
                     edges.append((gradesList[i],gradesList[j]))
                 elif similar(gradesList[i], gradesList[j]) > 0.5:
-                    #similarEdges.append((gradesList[i],gradesList[j]))
-                    edges.append((gradesList[i],gradesList[j]))
+                    edges.append((gradesList[i],gradesList[j]))'''
+
+    #add edges
+    for d in data:
+        for d2 in data2:
+            if d['user_id'] == d2:
+                if float(d["score"]) / float(d["total"]) * 100 > 90.0:
+                    edges.append((d['assignment'], d2))
+
 
     return edges

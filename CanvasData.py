@@ -2,58 +2,51 @@ import json
 import requests
 import html2text
 
-#7~AK0UAwLvvCAf33guCF1VyQs7S88xcVxtfHEwmBKllHETEAYMHs8YSkaKnjb8EUOB
-url = "https://canvas.instructure.com/api/v1/courses/72360000000012397/assignments"
-#users/72360000000048494/
-headers = {"Authorization": "Bearer " + "7236~vh5XQQveDqwkvzPvhzsK9IivIdSmUDKY3FarvXAiY0xUpeCGhFmXkjKzMu67yYcc"}
-response = requests.get(url, headers = headers)
+def grab_canvas_data():
 
-data = json.loads(response.text)
+    url = "https://asu.instructure.com/api/v1/courses/18732/assignments?per_page=200"
 
-url2 = "https://canvas.instructure.com/api/v1/courses/72360000000012397/assignments"
-#users/72360000000048494/
-headers = {"Authorization": "Bearer " + "7236~vh5XQQveDqwkvzPvhzsK9IivIdSmUDKY3FarvXAiY0xUpeCGhFmXkjKzMu67yYcc"}
-response2 = requests.get(url2, headers = headers)
+    headers = {"Authorization": "Bearer " + "7236~vh5XQQveDqwkvzPvhzsK9IivIdSmUDKY3FarvXAiY0xUpeCGhFmXkjKzMu67yYcc"}
+    response = requests.get(url, headers = headers)
 
-data2 = json.loads(response2.text)
+    data = json.loads(response.text)
 
-print(data2)
+    #for grades only
+    url2 = "https://asu.instructure.com/api/v1/courses/18732/gradebook_history/feed?per_page=200"
+    response2 = requests.get(url2, headers = headers)
+    data2 = json.loads(response2.text)
 
-modules = {}
+    assignments = []
+    users = []
 
-descriptions = {}
+    for dictionary in data:
+        for dictionary2 in data2:
+            ## assignment, score, total, module
+            newEntry = {}
+            newEntry["user_id"] = None
+            newEntry["score"] = None
+            newEntry["total"] = 0
 
-for d in data:
-    text = html2text.html2text(d['description']).encode('utf-8').lower()
-    text = text.replace('\n', '')
-    text = text.replace('(', '')
-    text = text.replace(')', '')
-    text = text.replace(':', '')
-    text =text.replace('.', '')
-    text = text.replace('*', '')
-    text = text.replace('\xe2\x80\x99ve', '')
-    text = text.replace('\xc2\xa0', '')
-    descriptions[d['id']] = text
+            if dictionary["name"]:
+                newEntry["assignment"] = dictionary["name"]
 
+            if dictionary["id"]:
+                newEntry["assignment_id"] = dictionary["id"]
+                if dictionary2["assignment_id"] == dictionary["id"]:
+                    newEntry["score"] = dictionary2["current_grade"]
 
-stopwords = ['', 'ourselves', 'hers', 'between', 'yourself', 'but', 'again', 'there', 'about', 'once', 'during', 'out', 'very', 'having', 'with', 'they', 'own', 'an', 'be', 'some',
-             'for', 'do', 'its', 'yours', 'such', 'into', 'of', 'most', 'itself', 'other', 'off', 'is', 's', 'am', 'or', 'who', 'as', 'from', 'him', 'each', 'the', 'themselves', 'until', 'below', 'are',
-             'we', 'these', 'your', 'his', 'through', 'don', 'nor', 'me', 'were', 'her', 'more', 'himself', 'this', 'down', 'should', 'our', 'their', 'while', 'above', 'both', 'up', 'to', 'ours', 'had', 'she',
-             'all', 'no', 'when', 'at', 'any', 'before', 'them', 'same', 'and', 'been', 'have', 'in', 'will', 'on', 'does', 'yourselves', 'then', 'that', 'because', 'what', 'over', 'why', 'so', 'can', 'did',
-             'not', 'now', 'under', 'he', 'you', 'herself', 'has', 'just', 'where', 'too', 'only', 'myself', 'which', 'those', 'i', 'after', 'few', 'whom', 't', 'being', 'if', 'theirs', 'my', 'against', 'a',
-             'by', 'doing', 'it', 'how', 'further', 'was', 'here', 'than' ]
+                    if dictionary2["user_id"]:
+                        if dictionary2["user_id"] not in users:
+                            users.append(dictionary2["user_id"])
+                        newEntry["user_id"] = dictionary2["user_id"]
 
-for v in descriptions.values():
-    print(v)
-    xx = v.split(' ')
-    z = {}
-    for x in xx:
-        if x not in stopwords:
-            if x in z:
-                z[x] += 1
-            elif x not in z:
-                z[x] = 1
-    for k, v in z.items():
-        if v >= 1:
-            print(k)
-    print('------------\n')
+            if dictionary["points_possible"]:
+                newEntry['total'] = dictionary["points_possible"]
+
+            if dictionary["position"]:
+                newEntry["module"] = dictionary["position"]
+
+            if newEntry["total"] != 0 and newEntry["score"] != None and newEntry["user_id"] != None:
+                assignments.append(newEntry)
+
+    return (assignments, users)
