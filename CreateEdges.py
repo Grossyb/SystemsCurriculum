@@ -1,6 +1,10 @@
 from difflib import SequenceMatcher
 from CanvasData import grab_canvas_data
 
+import os.path
+from os import path
+
+import json
 
 #data structure initialization
 data = {}
@@ -9,9 +13,20 @@ gradesList = []
 modulesList = []
 gradeScores = []
 edges = []
+edges2 = []
+
+def create_edges(repull):
+    edges = []
+    edges2 = []
+	
+    if (repull == False) and (path.exists("edges.json") == True):
+        with open('edges.json') as json_file:
+            edges = json.load(json_file)
+        with open('edges2.json') as json_file:
+            edges2 = json.load(json_file)
+        return edges, edges2
 
 
-def create_edges():
     #read in JSON file
     data, data2 = grab_canvas_data()
     #print(data)
@@ -48,6 +63,14 @@ def create_edges():
             if d['user_id'] == d2:
                 if float(d["score"]) / float(d["total"]) * 100 > 90.0:
                     edges.append((d['assignment'], d2))
+                    edges2.append((d['assignment'], d2, d['score'], d['total']))
 
+    f = open("edges.json", "w")
+    f.write(json.dumps(edges))
+    f.close()
 
-    return edges
+    f = open("edges2.json", "w")
+    f.write(json.dumps(edges2))
+    f.close()
+    
+    return edges, edges2

@@ -7,8 +7,17 @@ import networkx as nx
 
 from CreateEdges import *
 
+edges = []
+edges2 = []
+dictE = {}
+edges, edges2 = create_edges(False)
 
-edges = create_edges()
+graphData = []
+
+#convert edges2 to dictionary for searching grades
+for edge in edges2:
+    dictE[tuple([edge[0], edge[1]])] = float(edge[2]) / float(edge[3]) * 100
+    dictE[tuple([edge[1], edge[0]])] = float(edge[2]) / float(edge[3]) * 100
 
 #create graph G
 G = nx.Graph()
@@ -34,20 +43,41 @@ for n in pos:
 
 p=nx.single_source_shortest_path_length(G,ncenter)
 
+#--------------------------------------------------------
+# edges
+#--------------------------------------------------------
 #Create Edges
-edge_trace = go.Scatter(
-    x=[],
-    y=[],
-    line=dict(width=0.5,color='#888'),
-    hoverinfo='none',
-    mode='lines')
+def make_edge(x, y, width):
+    """
+        Args:
+        x: a tuple of the x from and to, in the form: tuple([x0, x1, None])
+        y: a tuple of the y from and to, in the form: tuple([y0, y1, None])
+        width: The width of the line
+        
+        Returns:
+        a Scatter plot which represents a line between the two points given.
+        """
+    return  go.Scatter(
+                       x=x,
+                       y=y,
+                       line=dict(width=width,color='#888'),
+                       hoverinfo='none',
+                       mode='lines')
+
 
 for edge in G.edges():
     x0, y0 = G.node[edge[0]]['pos']
     x1, y1 = G.node[edge[1]]['pos']
-    edge_trace['x'] += tuple([x0, x1, None])
-    edge_trace['y'] += tuple([y0, y1, None])
+    #edge_trace.append(make_edge(tuple([x0, x1, None]), tuple([y0, y1, None]), 0.05*int(dictE[edge])))
+    #calculate a range for
+    #print("grades",dictE[edge])
+    ranges = {0.02 : [0,91], 0.1: [92,94], 1 : [95, 97], 3: [98,101]}
+    gra = next((key for key, (low, high) in ranges.items() if low <= dictE[edge] <= high), 10)
+    graphData.append(make_edge(tuple([x0, x1, None]), tuple([y0, y1, None]), gra))
 
+#--------------------------------------------------------
+# nodes
+#--------------------------------------------------------
 node_trace = go.Scatter(
     x=[],
     y=[],
@@ -60,10 +90,10 @@ node_trace = go.Scatter(
         #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
         #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
         #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-        colorscale='YlGnBu',
+        colorscale='Rainbow',
         reversescale=True,
         color=[],
-        size=10,
+        size=[],
         colorbar=dict(
             thickness=15,
             title='Node Connections',
@@ -79,11 +109,22 @@ for node in G.nodes():
 
 #add color to node points
 for node, adjacencies in enumerate(G.adjacency()):
-    node_trace['marker']['color']+=tuple([len(adjacencies[1])])
+    
+    #add size to nodes
+    tmp = 10 + len(adjacencies[1])
+    print(node_trace['marker']['size'])
+    node_trace['marker']['size'] += tuple([tmp])
+    
+    student = str(adjacencies[0])
+    if student.isnumeric():
+        node_trace['marker']['color']+=(15,)
+    else:
+        node_trace['marker']['color']+=tuple([len(adjacencies[1])])
+    
     node_info = 'Name: ' + str(adjacencies[0]) + '<br># of connections: '+str(len(adjacencies[1]))
     node_trace['text']+=tuple([node_info])
 
-
+graphData.append(node_trace)
 ################### START OF DASH APP ###################
 
 app = dash.Dash()
@@ -93,14 +134,13 @@ app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
 
-
-fig = go.Figure(data=[edge_trace, node_trace],
+fig = go.Figure(data=graphData,
              layout=go.Layout(
-                title='<br>Systems Curriculum',
-                titlefont=dict(size=16),
+                title='<b>Systems Curriculum</b><br>',
+                titlefont=dict(size=36),
                 showlegend=False,
                 hovermode='closest',
-                margin=dict(b=20,l=5,r=5,t=40),
+                margin=dict(b=20,l=5,r=5,t=60),
                 annotations=[ dict(
                     showarrow=False,
                     xref="paper", yref="paper",
@@ -109,7 +149,9 @@ fig = go.Figure(data=[edge_trace, node_trace],
                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
 
 app.layout = html.Div([
+				html.Div(),
                 html.Div(dcc.Graph(id='Graph',figure=fig)),
+                
                 html.Div([
                         dcc.Slider(
                             id='my-slider',
@@ -118,30 +160,59 @@ app.layout = html.Div([
                         ),
                         html.Div(id='slider-output-container')
                     ], className='submit area'),
+                    
+                    
                 html.Div(className='row', children=[
-                    html.Div([html.H2('Overall Data'),
+                
+                    html.Div([html.H3('Overall Data'),
                               html.P('Number of nodes: ' + str(len(G.nodes))),
                               html.P('Number of edges: ' + str(len(G.edges)))],
                               className='three columns'),
+                              
                     html.Div([
-                            html.H2('Selected Data'),
-                            html.Div(id='selected-data'),
-                        ], className='six columns')
+                            html.H3('Add Connections'),
+                            dcc.Input(id='input-box', type='text'),
+                            html.Button('Add Connection', id='add-button'),
+                        ], className='three columns'),
+                        
+                    html.Div([
+                    		html.H3('Select Connections'),
+                    		dcc.Dropdown(
+                    			id='check',
+                    			options=[
+                    				{'label': 'A1', 'value': 'A1'},
+                    				{'label': 'A2', 'value': 'A2'},
+                    				{'label': 'A3', 'value': 'A3'},
+                    				{'label': 'B1', 'value': 'B1'},
+                    				{'label': 'B2', 'value': 'B2'},
+                    				{'label': 'B3', 'value': 'B3'},
+                    				{'label': 'C1', 'value': 'C1'},
+                    				{'label': 'C2', 'value': 'C2'},
+                    				{'label': 'C3', 'value': 'C3'}
+                    			],
+                    			value = [],
+                    			multi=True),
+                    		html.Button('Select All', id='select-all')
+                    			],className='three columns'),
+                    
+                    html.Div([
+                    		html.H3('Update'),
+                    		html.Button('Refresh graph', id='update-graph'),
+                    		html.Button('Refresh data', id='pull-canvas')
+                    ], className='three columns')
+                    
                     ])
                 ])
 
-
 @app.callback(
-    Output('selected-data', 'children'),
-    [Input('Graph','selectedData')])
-def display_selected_data(selectedData):
-    num_of_nodes = len(selectedData['points'])
-    text = [html.P('Num of nodes selected: '+str(num_of_nodes))]
-    for x in selectedData['points']:
-        sep = '<br>'
-        material = x['text'].split(sep, 1)[0]
-        text.append(html.P(str(material)))
-    return text
+	dash.dependencies.Output('check', 'options'), 
+	[dash.dependencies.Input('add-button', 'n_clicks')], 
+	[dash.dependencies.State('input-box', 'value'), dash.dependencies.State('check', 'options')])
+def update_output(n_clicks, new_value, current_options):
+	if not n_clicks:
+		return current_options
+	current_options.append({'label': new_value, 'value': new_value})
+	return current_options
 
 @app.callback(
     dash.dependencies.Output('slider-output-container', 'children'),
@@ -149,6 +220,18 @@ def display_selected_data(selectedData):
 def update_output(value):
     # print(value)
     return 'You have selected "{}"'.format(value)
+    
+@app.callback(
+    dash.dependencies.Output('check', 'value'),
+    [dash.dependencies.Input('select-all', 'n_clicks')],
+    [dash.dependencies.State('check', 'options')])
+def update_value(n_clicks, current_options):
+
+    new_value = []
+    for elem in current_options:
+        new_value.append(elem['value'])
+    
+    return new_value
 
 if __name__ == '__main__':
     app.run_server(debug=True)
