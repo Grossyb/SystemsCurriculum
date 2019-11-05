@@ -1,20 +1,49 @@
 import json
 import requests
 import html2text
+import json
 
 def grab_canvas_data():
 
-    url = "https://asu.instructure.com/api/v1/courses/18732/assignments?per_page=200"
+    assignURL = "https://asu.instructure.com/api/v1/courses/18732/assignments?per_page=100"
 
     headers = {"Authorization": "Bearer " + "7236~vh5XQQveDqwkvzPvhzsK9IivIdSmUDKY3FarvXAiY0xUpeCGhFmXkjKzMu67yYcc"}
-    response = requests.get(url, headers = headers)
+    assignResponse = requests.get(assignURL, headers = headers)
+    data = json.loads(assignResponse.text)
 
-    data = json.loads(response.text)
+    # pagination
+    while True:
+    	if 'next' in assignResponse.links:
+    		# print(assignResponse.links['next']['url'])
+    		assignURL = assignResponse.links['next']['url']
+
+    		assignResponse = requests.get(assignURL, headers = headers)
+    		data = data + json.loads(assignResponse.text)
+    	else:
+    		break
+
+    f = open("assignments.json", "w")
+    f.write(json.dumps(data))
+    f.close()
 
     #for grades only
-    url2 = "https://asu.instructure.com/api/v1/courses/18732/gradebook_history/feed?per_page=200"
-    response2 = requests.get(url2, headers = headers)
-    data2 = json.loads(response2.text)
+    gradesURL = "https://asu.instructure.com/api/v1/courses/18732/gradebook_history/feed?per_page=100"
+    gradesResponse = requests.get(gradesURL, headers = headers)
+    data2 = json.loads(gradesResponse.text)
+
+    f = open("grades.json", "w")
+    f.write(json.dumps(data2))
+    f.close()
+
+    while True:
+    	if 'next' in gradesResponse.links:
+    		# print(gradesResponse.links['next']['url'])
+    		gradesURL = gradesResponse.links['next']['url']
+
+    		gradesResponse = requests.get(gradesURL, headers = headers)
+    		data2 = data2 + json.loads(gradesResponse.text)
+    	else:
+    		break
 
     assignments = []
     users = []
