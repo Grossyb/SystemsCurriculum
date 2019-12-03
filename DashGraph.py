@@ -1,19 +1,52 @@
+import collections
 import dash
 import dash_html_components as html
 import dash_core_components as dcc
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import networkx as nx
-
 from CreateEdges import *
 
-def make_graph(n):
-    edges = create_edges(False, n)
+conns = create_edges(False)
+
+def make_graph(range, user_id, assignment):
+
+    edges = []
+    scores = collections.defaultdict(int)
+    if user_id == -1 and assignment == '-1':
+        for conn in conns:
+            if conn[2] <= range[1] and conn[2] >= range[0]:
+                edges.append((conn[0], conn[1]))
+                scores[(conn[0], conn[1])] = conn[2]
+    elif user_id == -1 and assignment != '-1':
+        for conn in conns:
+            if conn[2] <= range[1] and conn[2] >= range[0]:
+                if conn[0] == assignment:
+                    edges.append((conn[0], conn[1]))
+                    scores[(conn[0], conn[1])] = conn[2]
+    elif user_id != -1 and assignment == '-1':
+        for conn in conns:
+            if conn[1] == user_id:
+                if conn[2] <= range[1] and conn[2] >= range[0]:
+                    edges.append((conn[0], conn[1]))
+                    scores[(conn[0], conn[1])] = conn[2]
 
     # create graph G
     G = nx.Graph()
     # G.add_nodes_from(node)
+
+    def find_range(score):
+        if score <= 60:
+            return 0.5
+        elif score > 60 and score <= 80:
+            return 1.0
+        elif score > 80 and score <= 90:
+            return 2.0
+        else:
+            return 3.0
+
     G.add_edges_from(edges)
+
     # get a x,y position for each node
     pos = nx.layout.spring_layout(G)
 
@@ -45,8 +78,11 @@ def make_graph(n):
     for edge in G.edges():
         x0, y0 = G.node[edge[0]]['pos']
         x1, y1 = G.node[edge[1]]['pos']
+
         edge_trace['x'] += tuple([x0, x1, None])
         edge_trace['y'] += tuple([y0, y1, None])
+        edge_trace['line']['width'] = find_range(scores[edge])
+        print(edge, scores[edge], edge_trace['line']['width'])
 
     node_trace = go.Scatter(
         x=[],
@@ -60,13 +96,13 @@ def make_graph(n):
             #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
             #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
             #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-            colorscale='Hot',
+            colorscale='Rainbow',
             reversescale=True,
             color=[],
             size=[],
             colorbar=dict(
                 thickness=15,
-                title='Node Connections',
+                title='Number of connected components',
                 xanchor='left',
                 titleside='right'
             ),
@@ -106,17 +142,28 @@ app.css.append_css({
 })
 
 app.layout = html.Div([
-				html.Div(),
-                html.Div(dcc.Graph(id='Graph', )),
-
                 html.Div([
-                        dcc.Slider(
-                            id='my-slider',
-                            min=50, max=100, value=50,
-                            marks={50: '50', 60: '60', 70: '70', 80: '80', 90: '90', 100: '100'}
-                        ),
-                        html.Div(id='slider-output-container')
-                    ], className='submit area'),
+                    dcc.Graph(
+                        id='Graph',
+                        hoverData = {}
+                    ),
+                    dcc.RangeSlider(
+                        id='my-slider',
+                        min=50, max=100, value=[50,60],
+                        step=None,
+                        marks={50: '50', 60: '60', 70: '70', 80: '80', 90: '90', 100: '100'} # edit here
+                    ),
+                ], style={'width': '49%', 'display': 'inline-block'}),
+                html.Div([
+                    dcc.Graph(id='single-student-graph'),
+                    dcc.RadioItems(
+                        options = [
+                            {'label': 'User Network', 'value': 'UN'},
+                            {'label': 'User Bar Graph', 'value': 'UBG'}
+                        ],
+                        value = 'UN'
+                    )
+                ], style={'display': 'inline-block', 'width': '49%'}),
 
 
                 html.Div(className='row', children=[
@@ -177,10 +224,10 @@ def update_options(n_clicks, new_value, current_options):
     dash.dependencies.Output('num_edges', "children")],
     [dash.dependencies.Input('my-slider', "value")])
 def update_graph(n):
-    et, nt, nodes, edges = make_graph(n)
+    et, nt, nodes, edges = make_graph(n, -1, '-1')
     fig = go.Figure(data=[et, nt],
                  layout=go.Layout(
-                    title='<b>Systems Curriculum</b><br>',
+                    title='<b>{}</b><br>'.format('Systems Curriculum'),
                     titlefont=dict(size=36),
                     showlegend=False,
                     hovermode='closest',
@@ -198,31 +245,58 @@ def update_graph(n):
     [dash.dependencies.Input('select-all', 'n_clicks')],
     [dash.dependencies.State('check', 'options')])
 def update_selections(n_clicks, current_options):
-
     new_value = []
     for elem in current_options:
         new_value.append(elem['value'])
-
     return new_value
 
-# @app.callback(
-# 	dash.dependencies.Output('Graph', 'figure'),
-# 	[dash.dependencies.Input('update-graph', 'n_clicks_timestamp'),
-# 	dash.dependencies.Input('pull-canvas', 'n_clicks_timestamp')])
-# def update_graph(n_clicks1, n_clicks2):
-#
-# 	if n_clicks1 is None:
-# 		print('data update')
-# 		return fig
-# 	elif n_clicks2 is None:
-# 		print('graph update')
-# 		return fig
-# 	elif int(n_clicks1) > int(n_clicks2):
-# 		print('graph update')
-# 	else:
-# 		print('data update')
-#
-# 	return fig
+@app.callback(
+    dash.dependencies.Output('single-student-graph', 'figure'),
+    [dash.dependencies.Input('Graph', 'hoverData'),
+    dash.dependencies.Input('my-slider', "value")])
+def update_single_student_graph(hoverData, n):
+    print('Hover Data: {}'.format(hoverData))
+    print('n: {}'.format(n))
+    flag = False
+    user_id = -1
+    assignment = '-1'
+    try:
+        sep = '#'
+        rest = hoverData['points'][0]['text'].split(sep, 1)[0]
+        sep = ": "
+        user_id = int(rest.split(sep, 1)[1][:-4])
+        flag = True
+    except ValueError:
+        print('Error: This is not a Student Node')
+    except KeyError:
+        print('Error: Could not locate dictionary key')
+
+    if not flag:
+        try:
+            sep = '#'
+            rest = hoverData['points'][0]['text'].split(sep, 1)[0]
+            sep = ": "
+            assignment = rest.split(sep, 1)[1][: -4]
+        except ValueError:
+            print('Error: This is not an Assignment Node')
+        except KeyError:
+            print('Error: Could not locate dictionary key')
+
+    et, nt, nodes, edges = make_graph(n, user_id, assignment)
+    fig = go.Figure(data=[et, nt],
+                 layout=go.Layout(
+                    title='<b>User ID: {}</b><br>'.format(user_id),
+                    titlefont=dict(size=36),
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=60),
+                    annotations=[ dict(
+                        showarrow=False,
+                        xref="paper", yref="paper",
+                        x=0.005, y=-0.002 ) ],
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
+    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)
