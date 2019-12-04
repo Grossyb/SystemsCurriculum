@@ -23,12 +23,12 @@ def grab_canvas_data():
     receivedText.write(response2.text)
     receivedText.close()
 
-    
+
     assignments = []
     users = []
 
     for dictionary in data:
-        for dictionary2 in data2:  
+        for dictionary2 in data2:
             ## assignment, assignment id, score, total, module
             newEntry = {}
             newEntry["user_id"] = None
@@ -47,6 +47,7 @@ def grab_canvas_data():
                         if dictionary2["user_id"] not in users:
                             users.append(dictionary2["user_id"])
                         newEntry["user_id"] = dictionary2["user_id"]
+                        newEntry["user_name"] = dictionary2["user_name"]
 
             if dictionary["points_possible"]:
                 newEntry['total'] = dictionary["points_possible"]
@@ -59,17 +60,17 @@ def grab_canvas_data():
 
     # stored locally for inspection and improvement
     # one dictionary output format {"user_id": 4249, "score": "250", "total": 250.0,
-    # "assignment": "Systems Analysis Paper", "assignment_id": 372387, "module": 1}  
+    # "assignment": "Systems Analysis Paper", "assignment_id": 372387, "module": 1}
     with open('modAssignment.txt','w') as filehandle:
         json.dump(assignments,filehandle)
 
     # all students' user id [4249, 266746, 333854]
     with open('modUsers.txt','w') as filehandle:
         json.dump(users,filehandle)
-    
+
     return (assignments, users)
 
-    
+
 
 
 grab_canvas_data()
