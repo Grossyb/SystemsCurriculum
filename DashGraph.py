@@ -8,22 +8,28 @@ import networkx as nx
 from CreateEdges import *
 
 conns = create_edges(False)
+
+# graphData contains all the objects for creating the graph. It is a list of go.scatter objects
 graphData = []
 studentInfo = {}
 
 for edge in conns:
     studentInfo[edge[1]] = edge[3]
 
+# Function that returns all the objects for creating the graph
 def make_graph(range, user_id, assignment):
 
+    # graphdatafun as local variable contains all the objects for creating the graph. It is a list of go.scatter objects
     graphdatafun = []
     edges = []
     scores = collections.defaultdict(int)
 
+    # select edges and nodes needed according to the different graph view - (All students OR one student)
     if user_id == -1 and assignment == '-1':
         for conn in conns:
             if conn[2] <= range[1] and conn[2] >= range[0]:
                 edges.append((conn[0], conn[1]))
+                # scores is for looking up the grades between student nodes and assignment nodes
                 scores[(conn[0], conn[1])] = conn[2]
                 scores[(conn[1], conn[0])] = conn[2]
     elif user_id == -1 and assignment != '-1':
@@ -43,18 +49,6 @@ def make_graph(range, user_id, assignment):
 
     # create graph G
     G = nx.Graph()
-    # G.add_nodes_from(node)
-
-    #def find_range(score):
-    #    if score <= 60:
-    #        return 0.5
-    #    elif score > 60 and score <= 80:
-    #        return 1.0
-    #    elif score > 80 and score <= 90:
-    #        return 2.0
-    #    else:
-    #        return 3.0
-
     G.add_edges_from(edges)
 
     # get a x,y position for each node
@@ -77,8 +71,7 @@ def make_graph(range, user_id, assignment):
 
     p=nx.single_source_shortest_path_length(G,ncenter)
 
-    #Create Edges
-    #Create Edges
+    # A function that returns a go.scatter object which is the singel edge
     def make_edge(x, y, width):
         """
             Args:
@@ -96,45 +89,26 @@ def make_graph(range, user_id, assignment):
                            hoverinfo='none',
                            mode='lines')
 
-        #edge_trace = go.Scatter(
-        #x=[],
-        #y=[],
-        #line=dict(width=0.5,color='#888'),
-        #hoverinfo='none',
-        #mode='lines')
-
-
+    # Assign weights and create edges objects.
     for edge in G.edges():
         x0, y0 = G.node[edge[0]]['pos']
         x1, y1 = G.node[edge[1]]['pos']
-        #edge_trace.append(make_edge(tuple([x0, x1, None]), tuple([y0, y1, None]), 0.05*int(dictE[edge])))
-        #calculate a range for
-        #print("grades",dictE[edge])
-        #ranges = {0.021231 : [50,51], 0.111: [52,54], 1.01123 : [55, 57], 3.101: [58,60],
-        #          0.02123 : [60,61], 0.11: [62,64], 1.0123 : [65, 67], 3.01: [68,70],
-        #          0.0212 : [70,71], 0.112: [72,74], 1.012 : [75, 77], 3.02: [78,80],
-        #          0.021 : [80,81], 0.1123: [82,84], 1.01 : [85, 87], 3.03: [88,90],
-        #          0.02 : [90,91], 0.1: [92,94], 1 : [95, 97], 3: [98,101]}
 
+        # Different weight for grades
         ranges = {0.1 : [0,54], 0.5 : [55, 60],
                   0.9 : [61,64], 1.3 : [65,70],
                   1.7 : [71,74], 2.1 : [75,80],
                   2.5 : [81,84], 2.9 : [85,90],
                   3.3 : [91,94], 3.7 : [95,101]}
-        print("edge = ",edge, scores[edge])
+
+        # Find the corresponding weight for the current grade, if not found, return 0.5 as default value
         gra = next((key for key, (low, high) in ranges.items() if low <= scores[edge] <= high), 0.5)
-        print("weights = ", gra)
+
+        # Append the new edge
         graphdatafun.append(make_edge(tuple([x0, x1, None]), tuple([y0, y1, None]), gra))
 
-    #for edge in G.edges():
-    #    x0, y0 = G.node[edge[0]]['pos']
-    #    x1, y1 = G.node[edge[1]]['pos']
 
-    #    edge_trace['x'] += tuple([x0, x1, None])
-    #    edge_trace['y'] += tuple([y0, y1, None])
-    #    edge_trace['line']['width'] = find_range(scores[edge])
-    #    print(edge, scores[edge], edge_trace['line']['width'])
-
+    # Create nodes for the graph
     node_trace = go.Scatter(
         x=[],
         y=[],
@@ -164,31 +138,30 @@ def make_graph(range, user_id, assignment):
         node_trace['x'] += tuple([x])
         node_trace['y'] += tuple([y])
 
-    #add color to node points
+    # Differential nodes
     for node, adjacencies in enumerate(G.adjacency()):
 
-        #add size to nodes
+        # Add size to nodes according to the # of connections between them
         tmp = 10 + len(adjacencies[1])
-        # print(node_trace['marker']['size'])
         node_trace['marker']['size'] += tuple([tmp])
 
+        # Make the size of student nodes larger
         student = str(adjacencies[0])
         if student.isnumeric():
             node_trace['marker']['color']+=(15,)
         else:
             node_trace['marker']['color']+=tuple([len(adjacencies[1])])
 
+        # Add information for hover over
         tp = str(adjacencies[0])
-
         if tp.isnumeric():
-            #print(tp)
             node_info = 'Id: ' + str(adjacencies[0]) + ':<br>Name: ' + studentInfo[int(tp)] + '<br># of connections: '+str(len(adjacencies[1]))
         else:
             node_info = 'Name: ' + str(adjacencies[0]) + '<br># of connections: '+str(len(adjacencies[1]))
 
-        #node_info = 'Name: ' + str(adjacencies[0]) + '<br># of connections: '+str(len(adjacencies[1]))
         node_trace['text']+=tuple([node_info])
 
+    # Append all the nodes objects
     graphdatafun.append(node_trace)
 
     return (graphdatafun, len(G.nodes), len(G.edges))
@@ -198,12 +171,15 @@ def make_graph(range, user_id, assignment):
 app = dash.Dash()
 server = app.server
 
-# to add ability to use columns
+# Fetch CSS file to add style format and ability to use columns
 app.css.append_css({
     'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'
 })
 
+# Setup the HTML layout of the webpage
 app.layout = html.Div([
+
+                # New section (top-left graph and its slider)
                 html.Div([
                     dcc.Graph(
                         id='Graph',
@@ -216,28 +192,35 @@ app.layout = html.Div([
                         marks={50: '50', 60: '60', 70: '70', 80: '80', 90: '90', 100: '100'} # edit here
                     ),
                 ], style={'width': '49%', 'display': 'inline-block'}),
+
+                # New section (top-right graph)
                 html.Div([
                     dcc.Graph(id='single-student-graph'),
                 ], style={'display': 'inline-block', 'width': '49%'}),
 
-
+                # New row under the two graphs
                 html.Div(className='row', children=[
 
+                    # Column 1: data status information
                     html.Div([html.H3('Overall Data'),
                               html.P('Number of nodes: ' + '', id='num_nodes'),
                               html.P('Number of edges: ' + '', id='num_edges')],
                               className='three columns'),
 
+                    # Column 2: add nodes interface
                     html.Div([
                             html.H3('Add Nodes'),
                             dcc.Input(id='input-box', type='text'),
                             html.Button('Add Connection', id='add-button'),
                         ], className='three columns'),
 
+                    # Column 3: select nodes interface (multi-select dropdown box)
                     html.Div([
                     		html.H3('Select Nodes'),
                     		dcc.Dropdown(
                     			id='check',
+
+                                # default options - can be replaced with assignments
                     			options=[
                     				{'label': 'A1', 'value': 'A1'},
                     				{'label': 'A2', 'value': 'A2'},
@@ -251,9 +234,12 @@ app.layout = html.Div([
                     			],
                     			value = [],
                     			multi=True),
+
+                            # Select all button to select all of the nodes
                     		html.Button('Select All', id='select-all')
                     			],className='three columns'),
 
+                    # Column 4: Update buttons
                     html.Div([
                     		html.H3('Update'),
                     		html.Button('Refresh graph', id='update-graph'),
@@ -263,6 +249,9 @@ app.layout = html.Div([
                     ])
                 ])
 
+##### APP CALLBACKS ####
+
+# App callback to add text entered in 'add nodes' interface to 'select nodes' options
 @app.callback(
 	dash.dependencies.Output('check', 'options'),
 	[dash.dependencies.Input('add-button', 'n_clicks')],
@@ -273,6 +262,7 @@ def update_options(n_clicks, new_value, current_options):
 	current_options.append({'label': new_value, 'value': new_value})
 	return current_options
 
+# App callback that takes sliderrange input and outputs an updated graph
 @app.callback(
     [dash.dependencies.Output('Graph', "figure"),
     dash.dependencies.Output('num_nodes', "children"),
@@ -296,6 +286,7 @@ def update_graph(n):
                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
     return fig, 'Num of Nodes: ' + str(nodes), 'Num of Edges: ' + str(edges)
 
+# App callback that selects all available options when 'select all' button clicked
 @app.callback(
     dash.dependencies.Output('check', 'value'),
     [dash.dependencies.Input('select-all', 'n_clicks')],
@@ -306,6 +297,7 @@ def update_selections(n_clicks, current_options):
         new_value.append(elem['value'])
     return new_value
 
+# App callback that updates the single-view graph when hovering over data point on main graph
 @app.callback(
     dash.dependencies.Output('single-student-graph', 'figure'),
     [dash.dependencies.Input('Graph', 'hoverData'),
@@ -359,5 +351,6 @@ def update_single_student_graph(hoverData, n):
                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
     return fig
 
+# MAIN METHOD - starts the server with the dash app
 if __name__ == '__main__':
     app.run_server(debug=True)
