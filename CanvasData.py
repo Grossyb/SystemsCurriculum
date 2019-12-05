@@ -1,3 +1,19 @@
+"""
+---------------------------------------------------------------------------------
+This file extracts relevant information 'userid,username,score,total,assignment,
+assignmentid,module' of each assignment and store them in the dictionary
+'Assignments' and the list 'users'. Run this file to generate a text file of
+raw input 'received.txt', and two simplified text files 'modAssignment.txt'
+and 'modUsers.txt' to get a better understanding of the data structure.
+---------------------------------------------------------------------------------
+Contact anyone of us if you need furthur explanation:
+Hao Yang hyang46@asu.edu
+Chun Yang cyang114@asu.edu
+Logan Cousins lcousins@asu.edu
+Brandon Grossnickle bgrossni@asu.edu
+--------------------------------------------------------------------------------
+"""
+
 import json
 import requests
 import html2text

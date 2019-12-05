@@ -1,3 +1,14 @@
+"""
+------------------------------------------------------------------------------
+This file connects users with their assignment information and store them in
+the lists edges. Edges only contains tuples in the format of
+(assignment name,userid,score,user name). Run this file to generate edges.json and edges2.json to see
+more details.
+------------------------------------------------------------------------------
+"""
+
+
+
 from difflib import SequenceMatcher
 from CanvasData import grab_canvas_data
 import os.path
